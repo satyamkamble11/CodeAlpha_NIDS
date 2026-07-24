@@ -138,7 +138,10 @@ class TopAttackingIPsCanvas(FigureCanvas):
             for spine in self.axes.spines.values():
                 spine.set_color('#1E293B')
 
-        self.figure.tight_layout()
+        try:
+            self.figure.tight_layout()
+        except Exception:
+            pass
         self.draw()
 
 
@@ -175,7 +178,10 @@ class AttackTypeDonutCanvas(FigureCanvas):
             self.axes.set_title("Attack Classification Breakout", color="#F8FAFC", fontsize=10, fontweight='bold')
             self.axes.axis('equal')
 
-        self.figure.tight_layout()
+        try:
+            self.figure.tight_layout()
+        except Exception:
+            pass
         self.draw()
 
 
