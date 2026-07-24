@@ -130,4 +130,4 @@ CodeAlpha_NIDS/
 
 ---
 
-*Author: Satyam Kamble | CodeAlpha Cyber Security Internship (Team Antigravity)*
+*Author: Satyam Kamble | CodeAlpha Cyber Security Internship*
