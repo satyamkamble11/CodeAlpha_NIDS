@@ -92,5 +92,5 @@ def export_json():
     return jsonify({"error": msg}), 400
 
 if __name__ == '__main__':
-    print("🛡️ Launching NIDS SOC Web Dashboard on http://localhost:5000")
+    print("[WEB] Launching NIDS SOC Web Dashboard on http://localhost:5000")
     app.run(host='0.0.0.0', port=5000, debug=False)
