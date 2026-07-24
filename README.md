@@ -64,16 +64,15 @@ pip install -r requirements.txt
 
 ## How to Run
 
-### 1. Launch the NIDS Dashboard
-
-**Windows (Administrator Command Prompt or PowerShell):**
-```cmd
-python dashboard.py
-```
-
-**Linux / macOS:**
+### Option 1: Launch Localhost Web SOC Dashboard (Recommended 🌐)
 ```bash
-sudo python3 dashboard.py
+python web_app.py
+```
+Open your web browser and navigate to: **`http://localhost:5000`**
+
+### Option 2: Launch Desktop PyQt5 Threat Dashboard
+```bash
+python dashboard.py
 ```
 
 Click **🛡️ Start Monitoring** in the top control bar to begin live network monitoring.

@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CodeAlpha - NIDS Threat SOC Command Center</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            background-color: #090d16;
+            color: #f8fafc;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+        }
+        .card {
+            background-color: #0f172a;
+            border: 1px solid #1e293b;
+            border-radius: 10px;
+        }
+        .badge-high { background-color: #f43f5e; color: #ffffff; }
+        .badge-medium { background-color: #f59e0b; color: #0b0f19; }
+        .badge-low { background-color: #3b82f6; color: #ffffff; }
+        .table-dark {
+            background-color: #090d16;
+            --bs-table-bg: #090d16;
+        }
+        .table-dark th { color: #38bdf8; }
+        .monospaced { font-family: 'Consolas', monospace; white-space: pre-wrap; font-size: 12px; }
+    </style>
+</head>
+<body class="p-3">
+    <div class="container-fluid">
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom border-secondary">
+            <h3 class="text-danger font-weight-bold">🛡️ CodeAlpha NIDS SOC Command Center</h3>
+            <span id="statusBadge" class="badge bg-danger fs-6">STATUS: STOPPED 🔴</span>
+        </div>
+
+        <!-- KPI Summary Cards -->
+        <div class="row g-3 mb-3">
+            <div class="col-md-3">
+                <div class="card p-3 text-center border-info">
+                    <small class="text-secondary">Total Threat Alerts</small>
+                    <h3 id="kpiTotal" class="text-info mb-0">0</h3>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card p-3 text-center border-danger">
+                    <small class="text-secondary">HIGH Severity</small>
+                    <h3 id="kpiHigh" class="text-danger mb-0">0</h3>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card p-3 text-center border-warning">
+                    <small class="text-secondary">MEDIUM Severity</small>
+                    <h3 id="kpiMed" class="text-warning mb-0">0</h3>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card p-3 text-center border-primary">
+                    <small class="text-secondary">LOW Severity</small>
+                    <h3 id="kpiLow" class="text-primary mb-0">0</h3>
+                </div>
+            </div>
+        </div>
+
+        <!-- Controls Bar -->
+        <div class="card p-3 mb-3">
+            <div class="row g-2 align-items-center">
+                <div class="col-md-6 d-flex gap-2">
+                    <button id="startBtn" onclick="startNids()" class="btn btn-success fw-bold px-4">🛡️ Start NIDS</button>
+                    <button id="stopBtn" onclick="stopNids()" class="btn btn-danger fw-bold px-3" disabled>⏹ Stop</button>
+                    <button onclick="runSim('all')" class="btn btn-warning fw-bold">🔥 Run Attack Simulator</button>
+                </div>
+                <div class="col-md-6 d-flex gap-2 justify-content-end">
+                    <a href="/api/export/csv" class="btn btn-outline-info">💾 Export CSV Report</a>
+                    <a href="/api/export/json" class="btn btn-outline-info">💾 Export JSON Report</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Feed & Charts -->
+        <div class="row g-3">
+            <div class="col-md-8">
+                <div class="card p-3 h-100">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="text-secondary text-uppercase mb-0">Real-Time Threat Detection Feed</h6>
+                        <div class="d-flex gap-2">
+                            <input type="text" id="searchIp" onkeyup="fetchAlerts()" class="form-control form-control-sm bg-dark text-light border-secondary" placeholder="Search IP...">
+                            <select id="filterSev" onchange="fetchAlerts()" class="form-select form-select-sm bg-dark text-light border-secondary">
+                                <option value="ALL">ALL Severities</option>
+                                <option value="HIGH">HIGH</option>
+                                <option value="MEDIUM">MEDIUM</option>
+                                <option value="LOW">LOW</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="table-responsive" style="max-height: 440px;">
+                        <table class="table table-dark table-hover table-sm">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Timestamp</th>
+                                    <th>Severity</th>
+                                    <th>Attack Type</th>
+                                    <th>Source IP</th>
+                                    <th>Destination IP</th>
+                                    <th>Description</th>
+                                </tr>
+                            </thead>
+                            <tbody id="alertsTableBody">
+                                <tr><td colspan="7" class="text-center text-muted">No security alerts detected.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card p-3 h-100">
+                    <h6 class="text-secondary text-uppercase mb-3">Attack Breakdown Analytics</h6>
+                    <div style="height: 320px;">
+                        <canvas id="donutChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alert Inspector Modal -->
+    <div class="modal fade" id="alertModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content bg-dark text-light border-secondary">
+                <div class="modal-header border-secondary">
+                    <h5 class="modal-title text-danger" id="modalTitle">Threat Alert Evidence Dump</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <h6 id="modalDesc" class="text-warning"></h6>
+                    <div id="modalPayload" class="monospaced p-3 bg-black rounded text-info mb-3"></div>
+                    <button id="blockBtn" class="btn btn-danger fw-bold w-100">🚫 Block Source IP (Add to blocklist.txt)</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let donutChart;
+
+        function initChart() {
+            const ctx = document.getElementById('donutChart').getContext('2d');
+            donutChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['SQL_INJECTION', 'PORT_SCAN', 'PING_FLOOD', 'BRUTE_FORCE_SSH', 'ARP_SPOOFING'],
+                    datasets: [{
+                        data: [0, 0, 0, 0, 0],
+                        backgroundColor: ['#f43f5e', '#f59e0b', '#3b82f6', '#8b5cf6', '#10b981']
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#f8fafc' } } } }
+            });
+        }
+
+        async function updateStatus() {
+            const res = await fetch('/api/status');
+            const data = await res.json();
+            const badge = document.getElementById('statusBadge');
+            if(data.is_monitoring) {
+                badge.className = "badge bg-success fs-6";
+                badge.innerText = "STATUS: MONITORING ACTIVE 🟢";
+                document.getElementById('startBtn').disabled = true;
+                document.getElementById('stopBtn').disabled = false;
+            } else {
+                badge.className = "badge bg-danger fs-6";
+                badge.innerText = "STATUS: STOPPED 🔴";
+                document.getElementById('startBtn').disabled = false;
+                document.getElementById('stopBtn').disabled = true;
+            }
+        }
+
+        async function startNids() {
+            await fetch('/api/start', {method: 'POST'});
+            updateStatus();
+        }
+
+        async function stopNids() {
+            await fetch('/api/stop', {method: 'POST'});
+            updateStatus();
+        }
+
+        async function runSim(attackType) {
+            await fetch('/api/simulate', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({attack: attackType})
+            });
+            setTimeout(fetchAlerts, 1500);
+        }
+
+        async function fetchAlerts() {
+            const ip = document.getElementById('searchIp').value;
+            const sev = document.getElementById('filterSev').value;
+            
+            const res = await fetch(`/api/alerts?ip=${ip}&severity=${sev}`);
+            const data = await res.json();
+
+            document.getElementById('kpiTotal').innerText = data.kpi.total;
+            document.getElementById('kpiHigh').innerText = data.kpi.high;
+            document.getElementById('kpiMed').innerText = data.kpi.medium;
+            document.getElementById('kpiLow').innerText = data.kpi.low;
+
+            const tbody = document.getElementById('alertsTableBody');
+            if(data.alerts.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No threat alerts matching filter.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = '';
+            data.alerts.forEach(alert => {
+                const tr = document.createElement('tr');
+                tr.style.cursor = 'pointer';
+                if(alert.severity === 'HIGH') tr.className = 'table-danger fw-bold';
+                else if(alert.severity === 'MEDIUM') tr.className = 'table-warning';
+                
+                tr.onclick = () => showAlertModal(alert);
+                tr.innerHTML = `
+                    <td>${alert.id}</td>
+                    <td>${alert.timestamp}</td>
+                    <td><span class="badge ${alert.severity==='HIGH'?'badge-high':(alert.severity==='MEDIUM'?'badge-medium':'badge-low')}">${alert.severity}</span></td>
+                    <td>${alert.attack_type}</td>
+                    <td>${alert.src_ip}</td>
+                    <td>${alert.dst_ip}</td>
+                    <td>${alert.description}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function showAlertModal(alert) {
+            document.getElementById('modalTitle').innerText = `Threat Alert #${alert.id} - ${alert.attack_type}`;
+            document.getElementById('modalDesc').innerText = alert.description;
+            document.getElementById('modalPayload').innerText = alert.raw_payload || 'No raw payload payload.';
+            
+            const blockBtn = document.getElementById('blockBtn');
+            blockBtn.onclick = async () => {
+                const res = await fetch('/api/block', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ip: alert.src_ip})
+                });
+                const d = await res.json();
+                alert(d.message);
+            };
+
+            new bootstrap.Modal(document.getElementById('alertModal')).show();
+        }
+
+        initChart();
+        setInterval(() => { updateStatus(); fetchAlerts(); }, 1500);
+    </script>
+</body>
+</html>
