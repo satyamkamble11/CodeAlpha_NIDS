@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  nids:
+    build: .
+    container_name: codealpha_nids_engine
+    network_mode: "host"
+    cap_add:
+      - NET_RAW
+      - NET_ADMIN
+    environment:
+      - DISPLAY=${DISPLAY}
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix
+      - ./nids_alerts.db:/app/nids_alerts.db
